@@ -2,7 +2,7 @@ import { loadTown, foodOdor } from './world.js';
 import { Fly, PERSONAS, TownClock, TUNE } from './flies.js';
 import { UI } from './ui.js';
 
-const READOUTS = ['DN_L', 'DN_R', 'MN_leg_L', 'MN_leg_R', 'wing_L', 'wing_R', 'proboscis_L', 'proboscis_R', 'KC', 'MBON', 'steer_attr_L', 'steer_attr_R', 'steer_danger_L', 'steer_danger_R'];
+const READOUTS = ['DN_L', 'DN_R', 'MN_leg_L', 'MN_leg_R', 'wing_L', 'wing_R', 'proboscis_L', 'proboscis_R', 'KC', 'MBON', 'steer_attr_L', 'steer_attr_R', 'steer_sweet_L', 'steer_sweet_R', 'steer_ferment_L', 'steer_ferment_R', 'steer_danger_L', 'steer_danger_R'];
 const canvas = document.getElementById('town'); const ctx = canvas.getContext('2d');
 const loadingMsg = document.getElementById('loading-msg'), loadingBar = document.getElementById('loading-bar');
 const setLoad = (p, msg) => { loadingBar.style.width = (p * 100) + '%'; if (msg) loadingMsg.textContent = msg; };

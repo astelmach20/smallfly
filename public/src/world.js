@@ -1,19 +1,19 @@
 // Town map (AI Town "gentle" map, MIT; tiles from opengameart), named places, and odor fields.
 export const PLACES = [
   { id: 'campsite', name: 'Campsite', x: 9.5, y: 8.5, r: 2.6, kind: 'home', desc: 'a canvas tent and a crate' },
-  { id: 'crate', name: 'Sugar Crate', x: 7.2, y: 9.2, r: 1.2, kind: 'food', food: 'spilled sugar', strength: 0.9, plume: 5 },
-  { id: 'picnic', name: 'Picnic Table', x: 8.5, y: 12.4, r: 1.3, kind: 'food', food: 'a slice of melon', strength: 0.8, plume: 4.5 },
+  { id: 'crate', name: 'Sugar Crate', x: 7.2, y: 9.2, r: 1.2, kind: 'food', food: 'spilled sugar', strength: 0.9, plume: 5, odor: { sweet: 1.0, ferment: 0.1 } },
+  { id: 'picnic', name: 'Picnic Table', x: 8.5, y: 12.4, r: 1.3, kind: 'food', food: 'a slice of melon', strength: 0.8, plume: 4.5, odor: { sweet: 0.6, ferment: 0.7 } },
   { id: 'log', name: 'Fallen Log', x: 14.3, y: 10.7, r: 1.6, kind: 'social', desc: 'a mossy log everyone rests on' },
   { id: 'mud', name: 'Mud Puddle', x: 10.8, y: 13.2, r: 1.2, kind: 'danger', strength: 0.5 },
-  { id: 'garden', name: 'Garden Bed', x: 13.5, y: 21.6, r: 3.6, kind: 'food', food: 'overripe tomatoes', strength: 0.7, plume: 6 },
-  { id: 'berries', name: 'Berry Bushes', x: 17.0, y: 25.6, r: 2.2, kind: 'food', food: 'fermenting berries', strength: 1.0, plume: 7 },
+  { id: 'garden', name: 'Garden Bed', x: 13.5, y: 21.6, r: 3.6, kind: 'food', food: 'overripe tomatoes', strength: 0.7, plume: 6, odor: { sweet: 0.1, ferment: 1.0 } },
+  { id: 'berries', name: 'Berry Bushes', x: 17.0, y: 25.6, r: 2.2, kind: 'food', food: 'fermenting berries', strength: 1.0, plume: 7, odor: { sweet: 0.2, ferment: 1.0 } },
   { id: 'rocks', name: 'Sunning Rocks', x: 20.8, y: 23.6, r: 1.4, kind: 'social', desc: 'warm rocks by the river' },
   { id: 'oak', name: 'Old Oak', x: 33.5, y: 28.6, r: 2.8, kind: 'home', desc: 'the big tree where flies roost' },
   { id: 'easttent', name: 'Camper\'s Tent', x: 44.0, y: 8.3, r: 1.5, kind: 'home', desc: 'a tent at the east edge' },
-  { id: 'easttable', name: 'East Table', x: 43.2, y: 12.6, r: 1.2, kind: 'food', food: 'bread crumbs', strength: 0.6, plume: 4 },
-  { id: 'flowers1', name: 'Meadow Flowers', x: 26.6, y: 22.2, r: 1.0, kind: 'food', food: 'nectar', strength: 0.45, plume: 3.5 },
-  { id: 'flowers2', name: 'Yellow Flowers', x: 32.3, y: 22.3, r: 0.9, kind: 'food', food: 'nectar', strength: 0.4, plume: 3.5 },
-  { id: 'flowers3', name: 'Pink Flowers', x: 33.3, y: 13.5, r: 0.9, kind: 'food', food: 'pollen', strength: 0.4, plume: 3.5 },
+  { id: 'easttable', name: 'East Table', x: 43.2, y: 12.6, r: 1.2, kind: 'food', food: 'bread crumbs', strength: 0.6, plume: 4, odor: { sweet: 0.5, ferment: 0.5 } },
+  { id: 'flowers1', name: 'Meadow Flowers', x: 26.6, y: 22.2, r: 1.0, kind: 'food', food: 'nectar', strength: 0.45, plume: 3.5, odor: { sweet: 1.0, ferment: 0.0 } },
+  { id: 'flowers2', name: 'Yellow Flowers', x: 32.3, y: 22.3, r: 0.9, kind: 'food', food: 'nectar', strength: 0.4, plume: 3.5, odor: { sweet: 1.0, ferment: 0.0 } },
+  { id: 'flowers3', name: 'Pink Flowers', x: 33.3, y: 13.5, r: 0.9, kind: 'food', food: 'pollen', strength: 0.4, plume: 3.5, odor: { sweet: 1.0, ferment: 0.0 } },
   { id: 'river', name: 'The River', x: 24.5, y: 12, r: 0, kind: 'water' },
 ];
 
@@ -58,14 +58,16 @@ function bilinear(grid, W, H, x, y) {
 function loadImage(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
 
 // Food odor at (x,y): sum of plumes from active food places, skewed downwind.
-export function foodOdor(world, x, y, wind, exclude = null) {
+export function foodOdor(world, x, y, wind, channel = null, exclude = null) {
   let s = 0;
   for (const p of world.places) {
     if (p.kind !== 'food' || p.depleted || p === exclude) continue;
     const dx = x - p.x, dy = y - p.y; const d = Math.hypot(dx, dy) + 1e-6;
     const downwind = (dx * wind.x + dy * wind.y) / d; // +1 when fly is downwind of source
     const deff = d * (1 - 0.35 * downwind);
-    s += p.strength * (p.supply ?? 1) / (1 + (deff / p.plume) ** 2);
+    const cw = channel ? (p.odor?.[channel] ?? 0.5) : 1;
+    if (cw <= 0) continue;
+    s += cw * p.strength * (p.supply ?? 1) / (1 + (deff / p.plume) ** 2);
   }
   return s;
 }

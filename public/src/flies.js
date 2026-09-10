@@ -1,25 +1,33 @@
 import { foodOdor, placeAt } from './world.js';
 
 export const PERSONAS = [
-  { name: 'Fig', color: '#ffb347', home: 'oak', sweetTooth: 1.2, sociable: 0.8, timid: 0.7, restless: 1.0, bio: 'Bold forager. Always first to the berries.' },
-  { name: 'Plum', color: '#c58cff', home: 'oak', sweetTooth: 0.8, sociable: 1.4, timid: 0.9, restless: 0.8, bio: 'The social one. Follows the smell of other flies.' },
-  { name: 'Basil', color: '#7fe08a', home: 'campsite', sweetTooth: 1.0, sociable: 0.6, timid: 1.5, restless: 0.7, bio: 'Nervous. Steers well clear of the river.' },
-  { name: 'Clementine', color: '#ff7f50', home: 'campsite', sweetTooth: 1.4, sociable: 1.0, timid: 0.8, restless: 1.2, bio: 'Restless sugar hound. Never full for long.' },
-  { name: 'Pip', color: '#7fd4ff', home: 'easttent', sweetTooth: 0.9, sociable: 1.1, timid: 1.0, restless: 1.3, bio: 'Tiny and twitchy. Lives at the east tent.' },
-  { name: 'Juniper', color: '#f5e663', home: 'oak', sweetTooth: 0.7, sociable: 0.9, timid: 1.2, restless: 0.6, bio: 'Calm. Likes the sunning rocks at dusk.' },
+  { name: 'Fig', taste: { sweet: 0.6, ferment: 1.4 }, color: '#ffb347', home: 'oak', sweetTooth: 1.2, sociable: 0.8, timid: 0.7, restless: 1.0, bio: 'Bold forager. Lives for fermenting berries.' },
+  { name: 'Plum', taste: { sweet: 1.1, ferment: 0.9 }, color: '#c58cff', home: 'oak', sweetTooth: 0.8, sociable: 1.4, timid: 0.9, restless: 0.8, bio: 'The social one. Follows the smell of other flies.' },
+  { name: 'Basil', taste: { sweet: 0.9, ferment: 1.1 }, color: '#7fe08a', home: 'campsite', sweetTooth: 1.0, sociable: 0.6, timid: 1.5, restless: 0.7, bio: 'Nervous. Steers well clear of the river.' },
+  { name: 'Clementine', taste: { sweet: 1.5, ferment: 0.5 }, color: '#ff7f50', home: 'campsite', sweetTooth: 1.4, sociable: 1.0, timid: 0.8, restless: 1.2, bio: 'Restless sugar hound. Nectar and spilled sugar only.' },
+  { name: 'Pip', taste: { sweet: 1.0, ferment: 1.0 }, color: '#7fd4ff', home: 'easttent', sweetTooth: 0.9, sociable: 1.1, timid: 1.0, restless: 1.3, bio: 'Tiny and twitchy. Lives at the east tent.' },
+  { name: 'Juniper', taste: { sweet: 0.5, ferment: 1.4 }, color: '#f5e663', home: 'oak', sweetTooth: 0.7, sociable: 0.9, timid: 1.2, restless: 0.6, bio: 'Calm. Likes the sunning rocks at dusk.' },
 ];
 
 // Tuning knobs (calibrated with scripts/probe.mjs)
 export const TUNE = {
   odorGain: 0.22,       // external current per ORN at full concentration
-  contrast: 2.0,        // L/R contrast amplification
+  contrast: 6.0,        // L/R contrast amplification
   halfConc: 0.55,       // odor saturation constant
-  turnGain: 2.5,        // rad/s per unit L/R spike-rate asymmetry
+  turnGain: 6.0,        // rad/s per unit L/R spike-rate asymmetry (offline sweep, scripts/harness.mjs)
+  attrBalance: 1.464,   // L/R per-neuron rate ratio of steer_attr pools under symmetric input (scripts/calib_balance.mjs)
+  sweetBalance: 1.06,    // same, sweet channel (filled by calib)
+  fermentBalance: 1.001,  // same, ferment channel (filled by calib)
+  upwindGain: 1.2,      // surge: while odor drive is rising, bias heading upwind (rad/s per unit trend)
+  dangerBalance: 1.15,  // steer_danger pools: bias is ~2.1 at trace levels but ~1.03 at the concentrations that matter (near water)
   turnSign: -1,         // sign fixed empirically: flies must turn toward attractive odor, away from water
   speedBase: 0.9,       // tiles/s when motor pools are quiet
   speedGain: 300,       // tiles/s per (spikes/neuron/tick) of leg motor pool
   speedMax: 3.2,
   wanderNoise: 1.2,     // rad/s random heading jitter
+  steerFloor: 0.008,    // spikes/ms per neuron (8 Hz) at which L/R steering reaches half weight
+  castGain: 6.0,        // run-and-tumble: jitter shrinks while attractive-odor drive is rising, grows while it falls
+  surgeGain: 0.8,       // speed boost while odor drive is rising
   probEatThresh: 0.0015,// proboscis pool rate that triggers feeding when on food
   hungerRate: 1 / 240,  // per town-second scaled; ~4 town-hours to get hungry
 };
@@ -53,8 +61,10 @@ export class Fly {
     const L = [this.x + fx * nose + lx * ear, this.y + fy * nose + ly * ear];
     const R = [this.x + fx * nose - lx * ear, this.y + fy * nose - ly * ear];
     const hungerGain = 0.25 + 1.5 * this.hunger; // state-dependent food drive
-    const foodL = foodOdor(world, L[0], L[1], wind) * hungerGain * this.sweetTooth;
-    const foodR = foodOdor(world, R[0], R[1], wind) * hungerGain * this.sweetTooth;
+    const tSw = hungerGain * this.taste.sweet, tFe = hungerGain * this.taste.ferment;
+    const swL = foodOdor(world, L[0], L[1], wind, 'sweet') * tSw, swR = foodOdor(world, R[0], R[1], wind, 'sweet') * tSw;
+    const feL = foodOdor(world, L[0], L[1], wind, 'ferment') * tFe, feR = foodOdor(world, R[0], R[1], wind, 'ferment') * tFe;
+    const foodL = swL + feL, foodR = swR + feR;
     let socL = 0, socR = 0;
     for (const f of flies) { if (f === this) continue;
       socL += 0.5 / (1 + ((L[0] - f.x) ** 2 + (L[1] - f.y) ** 2) / 4); socR += 0.5 / (1 + ((R[0] - f.x) ** 2 + (R[1] - f.y) ** 2) / 4); }
@@ -70,28 +80,39 @@ export class Fly {
       inp[name + '_L'] = TUNE.odorGain * amp(l) * Math.max(0, 1 + TUNE.contrast * con);
       inp[name + '_R'] = TUNE.odorGain * amp(r) * Math.max(0, 1 - TUNE.contrast * con);
     };
-    pair('odor_food', foodL, foodR); pair('odor_social', socL, socR); pair('odor_danger', danL, danR);
+    pair('odor_sweet', swL, swR); pair('odor_ferment', feL, feR); pair('odor_social', socL, socR); pair('odor_danger', danL, danR);
     const here = placeAt(world, this.x, this.y);
     if (here && here.kind === 'food' && !here.depleted) { inp.taste_leg_L = inp.taste_leg_R = 0.15 * hungerGain; if (this.state === 'eating') inp.taste_head_L = inp.taste_head_R = 0.2; }
     const side = -(lx * wind.x + ly * wind.y) * wind.speed; // wind hitting right side is positive
     if (Math.abs(side) > 0.05) { if (side > 0) inp.wind_R = 0.08 * side; else inp.wind_L = -0.08 * side; }
-    this.inputs = inp; this.raw = { foodL, foodR, socL, socR, danL, danR };
+    this.inputs = inp; this.raw = { foodL, foodR, swL, swR, feL, feR, socL, socR, danL, danR };
     return inp;
   }
   // --- motor readout -> body commands
   applyRates(raw) {
     // exponential smoothing: short worker windows (4-20 ticks) make small motor pools very noisy
-    const r = this.rates || {}; const a = 0.35;
+    const r = this.rates || {}; const a = 0.2;
     for (const k in raw) r[k] = (r[k] ?? raw[k]) * (1 - a) + raw[k] * a;
     this.rates = r;
     // steering: decoded side-selective descending neurons (see scripts/decode_steering.mjs)
-    const asym = (a, b) => { const l = r[a] || 0, rr = r[b] || 0; return (l - rr) / (l + rr + 1e-4); };
-    const attr = asym('steer_attr_L', 'steer_attr_R');     // >0: attractive odor decoded on the left
-    const dang = asym('steer_danger_L', 'steer_danger_R'); // >0: danger decoded on the left
-    // canvas y is down, so a left turn is a decreasing heading
+    // the L and R pools contain different glomerulus mixes, so under symmetric input they fire at different
+    // per-neuron rates; divide out that calibrated bias before comparing sides (otherwise every fly circles).
+    // Each odor channel is compared separately and weighted by its own drive: no smell -> no steering,
+    // because the L/R asymmetry of a near-silent pool is pure noise.
+    const chan = (a, b, bal) => { const l = (r[a] || 0) / bal, rr = r[b] || 0; const tot = (l + rr) / 2; return { asym: (l - rr) / (l + rr + 1e-4), tot, w: tot / (tot + TUNE.steerFloor) }; };
+    const sw = chan('steer_sweet_L', 'steer_sweet_R', TUNE.sweetBalance);
+    const fe = chan('steer_ferment_L', 'steer_ferment_R', TUNE.fermentBalance);
+    const dg = chan('steer_danger_L', 'steer_danger_R', TUNE.dangerBalance);
+    const attr = sw.asym * sw.w + fe.asym * fe.w;   // >0: attractive odor on the left
+    const dang = dg.asym * dg.w;                    // >0: danger on the left
     this.turn = TUNE.turnSign * TUNE.turnGain * (-attr + dang);
+    // temporal comparison (surge/cast): total attractive drive rising -> run straight, faster, upwind; falling -> cast
+    const tot = (sw.tot + fe.tot) / 2;
+    const slow = this.attrSlow ?? tot; this.attrSlow = slow * 0.92 + tot * 0.08;
+    this.attrTrend = (tot - slow) / (slow + 0.003);
+    this.attrRate = tot; this.channels = { sweet: sw, ferment: fe, danger: dg };
     const motor = ((r.MN_leg_L || 0) + (r.MN_leg_R || 0)) / 2 + ((r.wing_L || 0) + (r.wing_R || 0)) / 4;
-    this.speedTarget = Math.min(TUNE.speedMax, TUNE.speedBase + TUNE.speedGain * motor);
+    this.speedTarget = Math.min(TUNE.speedMax, (TUNE.speedBase + TUNE.speedGain * motor) * (1 + TUNE.surgeGain * Math.max(0, this.attrTrend || 0)));
     this.proboscis = ((r.proboscis_L || 0) + (r.proboscis_R || 0)) / 2;
   }
   // --- body + life state; dt in real seconds; returns feed events
@@ -131,8 +152,14 @@ export class Fly {
       return ev;
     }
     // locomotion
-    const jitter = (Math.random() - 0.5) * TUNE.wanderNoise * this.restless;
-    this.heading += (this.turn + jitter) * dt;
+    const cast = Math.min(2.5, Math.max(0.15, 1 - TUNE.castGain * (this.attrTrend || 0)));
+    const jitter = (Math.random() - 0.5) * TUNE.wanderNoise * this.restless * cast;
+    let upwind = 0;
+    if ((this.attrTrend || 0) > 0 && wind.speed > 0.05) { // surge: real flies turn upwind when an odor gets stronger
+      const target = Math.atan2(-wind.y, -wind.x); const diff = Math.atan2(Math.sin(target - this.heading), Math.cos(target - this.heading));
+      upwind = TUNE.upwindGain * Math.min(1, this.attrTrend) * diff;
+    }
+    this.heading += (this.turn + jitter + upwind) * dt;
     const sp = this.speedTarget ?? TUNE.speedBase;
     this.speed += (sp - this.speed) * Math.min(1, dt * 4);
     let nx = this.x + Math.cos(this.heading) * this.speed * dt, ny = this.y + Math.sin(this.heading) * this.speed * dt;

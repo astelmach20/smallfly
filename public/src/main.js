@@ -94,6 +94,7 @@ function loop(now) {
 // ---------- rendering ----------
 function resize() { const r = canvas.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); canvas.width = r.width * dpr; canvas.height = r.height * dpr; }
 window.addEventListener('resize', resize); resize();
+if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(document.getElementById('stage'));
 function fitZoom() { const { world } = state; const r = canvas.getBoundingClientRect(); return Math.min(r.width / (world.W * world.T), r.height / (world.H * world.T)); }
 
 function render() {

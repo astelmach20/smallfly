@@ -66,7 +66,9 @@ export class UI {
     kv.innerHTML = `<b>Doing</b><span>${f.describeState()}</span><b>Where</b><span>${f.place?.name ?? 'the meadow'}</span><b>Hunger</b><span>${(f.hunger * 100) | 0}%</span><b>Meals</b><span>${f.meals}</span><b>Speed</b><span>${f.speed.toFixed(2)} tiles/s</span>` +
       `<b>Sleep pressure</b><span>${Math.round(f.sleepPressure * 100)}% · dFB ${hz(f.sleepRate)} Hz</span><b>Grooming</b><span>dust ${Math.round(f.dust * 100)}% · DNg ${hz(f.groomRate)} Hz</span>` +
       (f.sex === 'm' ? `<b>Courtship</b><span>drive ${Math.round(f.courtDrive * 100)}% · P1 ${hz(f.p1Rate)} Hz · song ${hz(f.songRate)} Hz</span>` : `<b>Sex</b><span>female (males court her)</span>`) +
-      `<b>Mushroom body</b><span>KC→MBON synapses: ${mb}</span><b>Learned valence</b><span>${modTxt}</span>` +
+      `<b>Mushroom body</b><span>KC→MBON synapses: ${mb}<br>${L.changed != null ? `${L.changed.toLocaleString()} of ${(L.edges || 0).toLocaleString()} synapses weakened by learning` : ''}</span>` +
+      `<b>Opinions</b><span>${['sweet', 'ferment'].map(ch => { const v = L.bySmell?.[ch]; const name = ch === 'sweet' ? 'sugary smell' : 'fermenting smell'; if (v == null) return `${name}: hasn't smelled it yet`; const m = Math.min(2, Math.max(0.15, 1 + 2 * v)); return `${name}: ${v > 0.12 ? `<span style="color:#7fe08a">likes it ×${m.toFixed(2)}</span>` : v < -0.12 ? `<span style="color:#ff7f50">wary ×${m.toFixed(2)}</span>` : `neutral (${v >= 0 ? '+' : ''}${v.toFixed(2)})`}`; }).join('<br>')}</span>` +
+      `<b>Smelling now</b><span>${modTxt}</span>` +
       `<b>Brain</b><span>${f.simMs.toFixed(1)} ms / ${f.lastTicks || 0} ticks · t=${(f.tick / 1000).toFixed(1)}s</span>`;
     const bars = document.getElementById('bars');
     const row = (lbl, l, r, max) => `<div class="bar-row"><span class="lbl">${lbl}</span><div class="bar l"><i style="width:${Math.min(100, l / max * 100)}%"></i></div><div class="bar r"><i style="width:${Math.min(100, r / max * 100)}%"></i></div></div>`;

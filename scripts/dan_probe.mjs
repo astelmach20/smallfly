@@ -13,5 +13,7 @@ show('ferment 0.12', { odor_ferment_L: 0.12, odor_ferment_R: 0.12 });
 show('taste 0.15+0.2', { taste_leg_L: 0.15, taste_leg_R: 0.15, taste_head_L: 0.2, taste_head_R: 0.2 });
 show('taste + DAN_reward 0.08', { taste_leg_L: 0.15, taste_leg_R: 0.15, DAN_reward: 0.08 });
 show('DAN_punish 0.1', { DAN_punish: 0.1 });
+show('DAN_punish 0.2', { DAN_punish: 0.2 });
+show('on food: sweet 0.2 + taste', { odor_sweet_L: 0.2, odor_sweet_R: 0.2, taste_leg_L: 0.15, taste_leg_R: 0.15, taste_head_L: 0.2, taste_head_R: 0.2 });
 show('loom 0.3', { loom_L: 0.3, loom_R: 0.3 });
 show('danger odor 0.12', { odor_danger_L: 0.12, odor_danger_R: 0.12 });

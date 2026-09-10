@@ -40,7 +40,7 @@ Left alone the LIF network sits in a self-sustained up-state where PN and Kenyon
 | input-driven (inputScale 0.0012) | 3% | 0.94 | 0.87 | none |
 | feedforward AL/calyx (shipped) | 11% | 0.95 | 0.58 | yes |
 
-`scripts/learn_test.mjs` pairs one odor with dopamine and reads the MBON valence for both odors before/after: punishment paired with sweet shifts sweet by −16.5 Hz and ferment by −8.6 Hz; reward paired with sweet shifts sweet by +19 Hz and ferment by +9 Hz. Dopamine neurons are tonically active and odors alone lift PPL1 by ~20-30 Hz, so only deviations above a running baseline and a threshold count as teaching signals (`danThresh`).
+`scripts/learn_test.mjs` pairs one odor with dopamine and reads the MBON valence for both odors before/after: punishment paired with sweet shifts the sweet MBON valence by −13 Hz and ferment by −3 Hz; reward paired with sweet shifts sweet by +23 Hz and ferment by +11 Hz (learned-synapse valence −0.60 vs −0.38 and +0.58 vs +0.37: specific, with the generalisation you'd expect from overlapping Kenyon-cell codes). Dopamine neurons are tonically active here and odors + taste alone lift PPL1 by up to ~60 Hz, so only deviations above a running baseline (which follows the floor quickly but creeps up slowly) plus a threshold (`danThresh`) count as teaching signals; the injected punishment lifts PPL1 by ~130 Hz. Without this the flies slowly "learn" to avoid every food smell.
 
 ### Does it work?
 
@@ -49,12 +49,12 @@ Left alone the LIF network sits in a self-sustained up-state where PN and Kenyon
 | condition | mean distance to food (tiles) | time on food | reached it |
 |---|---|---|---|
 | no steering (random walk, motor vigor only) | 17.4 | 3% | 2 of 3 |
-| naive fly | 4.2 | 42% | 3 of 3 |
-| garden smell pre-paired with punishment (PPL1, 4 × 0.6 s) | 4.8 | 33% | 3 of 3 |
-| garden smell pre-paired with reward (PAM, 4 × 0.6 s) | 3.2 | 60% | 3 of 3 |
+| naive fly | 4.1 | 43% | 3 of 3 |
+| garden smell pre-paired with punishment (PPL1, 4 × 0.6 s) | 11.7 | 9% | 3 of 3 |
+| garden smell pre-paired with reward (PAM, 4 × 0.6 s) | 2.8 | 70% | 3 of 3 |
 | upwind term from the JO readout inverted | 11.1 | 13% | 3 of 3 |
 
-Learning changes are graded (a few experiences, `learnRate` 0.0015) and recover over ~10 sim-minutes, so a punished fly still visits — it just doesn't linger. In the town the flies mostly earn reward (meals), so after a day most of them "like" food smells a bit more than they did at dawn; punishment comes from the river and from being swatted.
+Learning is graded (`learnRate` 0.003: a couple of meals to notice, a day to settle) and recovers over ~30 sim-minutes, so a punished fly still visits — it just doesn't linger. In the town the flies mostly earn reward (meals), so after a day most of them "like" food smells a bit more than they did at dawn; punishment comes from the river and from being swatted.
 
 - `scripts/select_subgraph.py` picks the subgraph: all olfactory receptor neurons, antennal-lobe PNs/LNs, lateral horn, the full mushroom body (KCs, MBONs, DANs), gustatory + wind sensors, all descending neurons, leg/wing/proboscis motor neurons, then fills to 30k with the neurons most strongly connected to that set. Edges with ≥ 5 synapses are kept; sign comes from predicted neurotransmitter (GABA/glutamate inhibitory).
 - `scripts/export_graph.py` writes `public/assets/brain.bin` (CSR graph + soma positions) and `brain.json` (named input/output groups).

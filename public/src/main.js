@@ -4,6 +4,7 @@ import { UI } from './ui.js';
 
 const READOUTS = ['DN_L', 'DN_R', 'MN_leg_L', 'MN_leg_R', 'wing_L', 'wing_R', 'proboscis_L', 'proboscis_R', 'KC', 'MBON', 'steer_attr_L', 'steer_attr_R', 'steer_sweet_L', 'steer_sweet_R', 'steer_ferment_L', 'steer_ferment_R', 'steer_danger_L', 'steer_danger_R',
   'MBON_approach', 'MBON_avoid', 'DAN_reward', 'DAN_punish', 'P1', 'song_DN', 'GF', 'escape_DN', 'groom_DN', 'clock', 'sleep_FB', 'wind_L', 'wind_R', 'phero_female_L', 'phero_female_R', 'phero_male_L', 'phero_male_R'];
+const ODOR_CHANNELS = ['sweet', 'ferment']; // food-odor channels the mushroom body keeps per-smell opinions about
 const canvas = document.getElementById('town'); const ctx = canvas.getContext('2d');
 const loadingMsg = document.getElementById('loading-msg'), loadingBar = document.getElementById('loading-bar');
 const setLoad = (p, msg) => { loadingBar.style.width = (p * 100) + '%'; if (msg) loadingMsg.textContent = msg; };
@@ -34,6 +35,8 @@ async function boot() {
     const f = new Fly(p, world);
     const w = new Worker('src/brain-worker.js', { type: 'module' });
     f.worker = w; f.pending = false;
+    // a worker exception must never silently freeze a fly (pending would stay true forever)
+    w.onerror = (err) => { console.error(`${p.name}'s brain threw:`, err.message, err.filename, err.lineno); f.pending = false; };
     w.onmessage = (e) => {
       const m = e.data;
       if (m.type === 'ready') { ready++; setLoad(0.8 + 0.2 * ready / PERSONAS.length, `${ready}/${PERSONAS.length} brains online`); if (ready === PERSONAS.length) start(); }
@@ -76,7 +79,7 @@ function loop(now) {
         for (const k of Object.keys(state.meta.groups)) if (k.startsWith('odor_')) inputs[k] = (inputs[k] || 0) + 0.01;
         f.pending = true;
         const ticks = Math.max(4, Math.min(20, Math.round(state.ticksPerWindow * Math.max(1, state.speedMul / 3))));
-        f.worker.postMessage({ type: 'tick', id: f.tick, inputs, ticks, readouts: READOUTS, wantSpikes: state.ui.selected === f });
+        f.worker.postMessage({ type: 'tick', id: f.tick, inputs, ticks, readouts: READOUTS, channels: ODOR_CHANNELS, wantSpikes: state.ui.selected === f });
       }
     }
     if (events.length) state.ui.pushEvents(events);
@@ -143,6 +146,8 @@ function drawFly(f, T, zoom) {
   // eyes
   ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(4.5, -1.6, 1.1, 0, Math.PI * 2); ctx.arc(4.5, 1.6, 1.1, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
+  // dopamine: a green (reward) or red (punishment) pulse while the mushroom body is learning
+  const L = f.learn; if (L && (L.reward > 0.15 || L.punish > 0.15)) { const rew = L.reward >= L.punish; const k = Math.max(L.reward, L.punish); const pulse = 11 + 4 * Math.sin(f.wingPhase * 0.3); ctx.strokeStyle = rew ? `rgba(127,224,138,${0.35 + 0.5 * k})` : `rgba(255,80,60,${0.35 + 0.5 * k})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, pulse, 0, Math.PI * 2); ctx.stroke(); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = ctx.strokeStyle; ctx.fillText(rew ? '+ dopamine' : '− dopamine', x, y + 28); }
   // status
   if (sel) { ctx.strokeStyle = f.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.stroke(); }
   if (state.showLabels || sel) { ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.6)'; const lbl = f.name + (f.state === 'eating' ? ' 🍽' : f.state === 'sleeping' ? ' 💤' : f.state === 'wet' ? ' 💦' : f.state === 'grooming' ? ' 🧼' : f.state === 'escaping' ? ' 💨' : f.state === 'courting' ? (f.singing ? ' 🎵' : ' 💘') : f.copying ? ' 👀' : ''); const w = ctx.measureText(lbl).width; ctx.fillRect(x - w / 2 - 2, y - 24, w + 4, 12); ctx.fillStyle = f.color; ctx.fillText(lbl, x, y - 15); }

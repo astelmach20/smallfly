@@ -12,6 +12,7 @@ onmessage = (e) => {
     brain.setInputs(m.inputs);
     const t0 = performance.now();
     const total = brain.run(m.ticks);
+    brain.noteOdorTemplates(m.inputs, m.channels || ['sweet', 'ferment']);
     const rates = {}; for (const name of m.readouts) rates[name] = brain.rate(name, m.ticks);
     const msg = { type: 'result', id: m.id, ticks: m.ticks, totalSpikes: total, rates, ms: performance.now() - t0, tick: brain.tick, learn: brain.learnStats() };
     if (m.wantSpikes) { msg.spiked = brain.spikedIndices(); postMessage(msg, [msg.spiked.buffer]); }

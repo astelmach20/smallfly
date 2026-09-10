@@ -38,7 +38,7 @@ export const TUNE = {
   mbGain: 2.0,
   danReward: 0.08,      // PAM drive while tasting food (sugar reward)
   danCopy: 0.05,        // PAM drive while watching another fly eat something you can smell (social learning)
-  danPunish: 0.1,       // PPL1 drive for a few seconds after getting wet / a near miss
+  danPunish: 0.2,       // PPL1 drive for a few seconds after getting wet / a near miss (PPL1 also responds to odors and taste, so a real punishment has to stand well clear of that)
   // other circuits (thresholds in spikes/ms per neuron; baselines from scripts/circuits.mjs)
   sleepDrive: 0.2,      // external drive on dFB/ExR sleep neurons at full sleep pressure
   sleepOn: 0.085,       // dFB rate above which a fly settles down (85 Hz; ~14 town-hours awake in daylight, less at night)
@@ -193,6 +193,7 @@ export class Fly {
     this.sleepPressure = Math.max(0, Math.min(1.2, this.sleepPressure + townDt / 3600 * (asleep ? -1 / 6 : 1 / 14)));
     if (this.sex === 'm' && !asleep) this.courtDrive = Math.min(1, this.courtDrive + townDt / 3600 * 0.25);
     this.punishT = Math.max(0, this.punishT - dt);
+    ev.push(...this.noteLearning(clock));
     const here = placeAt(world, this.x, this.y);
     // --- escape: giant fiber fires -> jump away from whatever loomed. Works in any state, wakes sleepers.
     if (this.state !== 'escaping' && this.gfRate > TUNE.escapeThresh && this.loom) {
@@ -327,6 +328,18 @@ export class Fly {
       }
     }
     return ev;
+  }
+  // announce when the mushroom body's opinion of a smell crosses a threshold (the synapses moved; this just says so)
+  noteLearning(clock) {
+    const by = this.learn?.bySmell; if (!by) return [];
+    this.opinion = this.opinion || {}; const out = [];
+    const names = { sweet: 'sugary smell', ferment: 'fermenting smell' };
+    for (const ch in by) { const v = by[ch]; if (v == null) continue; const was = this.opinion[ch] || 'neutral';
+      const now = v < -0.12 ? 'wary' : v > 0.12 ? 'fond' : Math.abs(v) < 0.06 ? 'neutral' : was;
+      if (now !== was) { this.opinion[ch] = now; this.dayLog.learned++;
+        out.push(this.remember(now === 'wary' ? `That ${names[ch] ?? ch} is starting to feel like trouble.` : now === 'fond' ? `I'm getting a real taste for the ${names[ch] ?? ch}.` : `The ${names[ch] ?? ch} feels ordinary again.`, clock, 'learn')); }
+    }
+    return out;
   }
   move(dt, world) {
     let nx = this.x + Math.cos(this.heading) * this.speed * dt, ny = this.y + Math.sin(this.heading) * this.speed * dt;

@@ -11,14 +11,14 @@ export const DEFAULT_PARAMS = {
   // Reward DANs (PAM) depress KC->avoidance-MBON synapses of the KCs active for the current odor;
   // punishment DANs (PPL1) depress KC->approach-MBON synapses. The odor specificity comes from
   // the KC population code; the wiring says which synapses exist. Rates in spikes/ms per neuron.
-  learnRate: 0.0015,  // depression per (eligibility x dopamine drive) per learning step (a few experiences, not one)
+  learnRate: 0.003,   // depression per (eligibility x dopamine drive) per learning step (a couple of meals to notice, a day to settle)
   eligTau: 400,       // ticks; how long a KC spike stays eligible (~0.4 s coincidence window; shorter = more odor-specific)
   danGain: 40,        // scales DAN pool rate *above its running baseline* (spikes/ms/neuron) into a 0..1 dopamine drive
-  danBaseTau: 300,    // learning steps (x learnEvery ticks) for the DAN baseline estimate; DANs are tonically active
+  danBaseTau: 900,    // learning steps (x learnEvery ticks) for the DAN baseline estimate; DANs are tonically active
                       // in this network, so only deviations from baseline count as teaching signals
-  danThresh: { reward: 0.01, punish: 0.04 }, // spikes/ms above baseline before a deviation counts; odors alone lift PPL1 by
-                      // ~0.02-0.03 (scripts/dan_probe), the injected punishment by ~0.08
-  forgetTau: 600000,  // ticks; slow recovery of depressed synapses (~10 sim minutes)
+  danThresh: { reward: 0.01, punish: 0.07 }, // spikes/ms above baseline before a deviation counts; odors/taste alone lift PPL1 by
+                      // ~0.03-0.04 (scripts/dan_probe.mjs), the injected punishment (0.2) by ~0.13
+  forgetTau: 1800000, // ticks; slow recovery of depressed synapses (~30 sim minutes, about 1.5 town-days)
   learnEvery: 10,     // apply the rule every N ticks
   // Feedforward-dominated sensory stages: scale *excitatory* synapses onto a target group that do not
   // come from its canonical feedforward source. The rest of the brain sits in a self-sustained
@@ -103,7 +103,10 @@ export class Brain {
     this.danAcc.reward = 0; this.danAcc.punish = 0;
     if (this.danBase === undefined) this.danBase = { reward: rr, punish: pp, n: 0 };
     const bt = Math.min(this.params.danBaseTau, 20 + this.danBase.n++); // fast at first, then slow
-    this.danBase.reward += (rr - this.danBase.reward) / bt; this.danBase.punish += (pp - this.danBase.punish) / bt;
+    // asymmetric: the baseline follows the tonic floor quickly but creeps up only slowly, so a run of
+    // back-to-back meals (or a long scare) keeps counting as teaching signal instead of becoming the new normal
+    const up = 8; const db = this.danBase;
+    db.reward += (rr - db.reward) / (rr > db.reward ? bt * up : bt); db.punish += (pp - db.punish) / (pp > db.punish ? bt * up : bt);
     const th = this.params.danThresh;
     const rew = Math.min(1, Math.max(0, rr - this.danBase.reward - th.reward) * danGain), pun = Math.min(1, Math.max(0, pp - this.danBase.punish - th.punish) * danGain);
     this.dopa.reward = this.dopa.reward * 0.7 + rew * 0.3; this.dopa.punish = this.dopa.punish * 0.7 + pun * 0.3;
@@ -126,10 +129,32 @@ export class Brain {
     if (na < 1 || nv < 1) return 0;
     return sa / na - sv / nv;
   }
+  // Remember which Kenyon cells fire for each smell (EMA of the eligibility trace while that smell dominates the
+  // input), so the UI can ask "how does this fly feel about the sugary smell right now?" without presenting it.
+  noteOdorTemplates(inputs, channels) {
+    if (!this.plasticPre || !Array.isArray(channels)) return;
+    const kc = this.groups.KC; this.templates = this.templates || {};
+    let best = null, bestV = 0, second = 0;
+    for (const ch of channels) { const v = (inputs[`odor_${ch}_L`] || 0) + (inputs[`odor_${ch}_R`] || 0); if (v > bestV) { second = bestV; bestV = v; best = ch; } else if (v > second) second = v; }
+    if (!best || bestV < 0.03 || bestV < 1.5 * second) return;
+    const t = this.templates[best] || (this.templates[best] = { w: new Float32Array(this.N), n: 0 });
+    const a = t.n < 5 ? 0.5 : 0.1; for (let k = 0; k < kc.length; k++) { const i = kc[k]; t.w[i] = t.w[i] * (1 - a) + this.elig[i] * a; } t.n++;
+  }
+  valenceFor(w) {
+    // templates are averaged eligibility traces (mostly small numbers): normalise so the smell's strongest KCs count as 1
+    let mx = 0; for (let k = 0; k < this.groups.KC.length; k++) { const v = w[this.groups.KC[k]]; if (v > mx) mx = v; }
+    if (mx <= 0) return null; const inv = 1 / mx;
+    const wmod = this.wmod, pre = this.plasticPre; let sa = 0, na = 0, sv = 0, nv = 0;
+    for (let k = 0; k < this.plasticApp.length; k++) { const j = this.plasticApp[k]; const e = w[pre[j]] * inv; if (e > 0.3) { sa += (wmod[j] - 1) * e; na += e; } }
+    for (let k = 0; k < this.plasticAvo.length; k++) { const j = this.plasticAvo[k]; const e = w[pre[j]] * inv; if (e > 0.3) { sv += (wmod[j] - 1) * e; nv += e; } }
+    if (na < 1 || nv < 1) return null;
+    return sa / na - sv / nv;
+  }
   // mean synaptic strength of the plastic pathways (1 = naive)
   learnStats() {
-    const m = (arr) => { if (!arr.length) return 1; let s = 0; for (let k = 0; k < arr.length; k++) s += this.wmod[arr[k]]; return s / arr.length; };
-    return { approach: m(this.plasticApp), avoid: m(this.plasticAvo), valence: this.learnedValence(), reward: this.dopa?.reward ?? 0, punish: this.dopa?.punish ?? 0, edges: this.plasticApp.length + this.plasticAvo.length, base: this.danBase ? { reward: +(this.danBase.reward * 1000).toFixed(1), punish: +(this.danBase.punish * 1000).toFixed(1) } : null };
+    let changed = 0; const m = (arr) => { if (!arr.length) return 1; let s = 0; for (let k = 0; k < arr.length; k++) { const w = this.wmod[arr[k]]; s += w; if (w < 0.9) changed++; } return s / arr.length; };
+    const bySmell = {}; for (const ch in (this.templates || {})) bySmell[ch] = this.valenceFor(this.templates[ch].w);
+    return { approach: m(this.plasticApp), avoid: m(this.plasticAvo), changed, bySmell, valence: this.learnedValence(), reward: this.dopa?.reward ?? 0, punish: this.dopa?.punish ?? 0, edges: this.plasticApp.length + this.plasticAvo.length, base: this.danBase ? { reward: +(this.danBase.reward * 1000).toFixed(1), punish: +(this.danBase.punish * 1000).toFixed(1) } : null };
   }
   applyThresholds(mul) {
     this.thr.fill(this.params.threshold);

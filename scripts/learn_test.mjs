@@ -13,7 +13,7 @@ function valence(ch) { b.setInputs(odor(ch)); b.run(150); const T = 400; b.run(T
 const pre = { sweet: valence('sweet'), ferment: valence('ferment') };
 console.log('before   sweet', JSON.stringify(pre.sweet), 'ferment', JSON.stringify(pre.ferment), 'learn', JSON.stringify(b.learnStats()));
 const mode = process.argv[3] || 'punish';
-for (let k = 0; k < 4; k++) { b.setInputs({ ...odor('sweet'), [mode === 'punish' ? 'DAN_punish' : 'DAN_reward']: 0.1 }); b.run(600); b.setInputs(amb); b.run(300); }
+for (let k = 0; k < 4; k++) { b.setInputs({ ...odor('sweet'), [mode === 'punish' ? 'DAN_punish' : 'DAN_reward']: mode === 'punish' ? 0.2 : 0.1 }); b.run(600); b.setInputs(amb); b.run(300); }
 const post = { sweet: valence('sweet'), ferment: valence('ferment') };
 console.log(`after ${mode} sweet`, JSON.stringify(post.sweet), 'ferment', JSON.stringify(post.ferment), 'learn', JSON.stringify(b.learnStats()));
 console.log('delta MBON valence  sweet', (post.sweet.v - pre.sweet.v).toFixed(1), ' ferment', (post.ferment.v - pre.ferment.v).toFixed(1), '| learned valence sweet', post.sweet.lv, 'ferment', post.ferment.lv);

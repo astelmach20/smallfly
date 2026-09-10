@@ -19,7 +19,7 @@ const res = [];
 for (let sd = 0; sd < seeds; sd++) {
   seedRand = 17 + sd * 101;
   const b = new Brain(graph, meta, 1000 + sd * 7919, meta.lif); b.setInputs(amb); b.run(1500);
-  if (pretrain) for (let k = 0; k < 4; k++) { b.setInputs({ ...amb, odor_ferment_L: 0.12, odor_ferment_R: 0.12, [pretrain === 'punish' ? 'DAN_punish' : 'DAN_reward']: 0.1 }); b.run(600); b.setInputs(amb); b.run(300); }
+  if (pretrain) for (let k = 0; k < 4; k++) { b.setInputs({ ...amb, odor_ferment_L: 0.12, odor_ferment_R: 0.12, [pretrain === 'punish' ? 'DAN_punish' : 'DAN_reward']: pretrain === 'punish' ? 0.2 : 0.1 }); b.run(600); b.setInputs(amb); b.run(300); }
   const persona = { ...PERSONAS[sd % PERSONAS.length], home: 'oak' };
   const fly = new Fly(persona, world); fly.x = garden.x + 8 + (rnd() - .5); fly.y = garden.y - 1 + (rnd() - .5); fly.heading = rnd() * Math.PI * 2;
   const dt = 1 / 15, ticks = +(process.env.TICKS || 8); let dsum = 0, n = 0, reached = 0, tReach = null;

@@ -11,12 +11,12 @@ export const DEFAULT_PARAMS = {
   // Reward DANs (PAM) depress KC->avoidance-MBON synapses of the KCs active for the current odor;
   // punishment DANs (PPL1) depress KC->approach-MBON synapses. The odor specificity comes from
   // the KC population code; the wiring says which synapses exist. Rates in spikes/ms per neuron.
-  learnRate: 0.004,   // depression per (eligibility x dopamine drive) per learning step
-  eligTau: 800,       // ticks; how long a KC spike stays eligible (~0.8 s coincidence window)
+  learnRate: 0.0015,  // depression per (eligibility x dopamine drive) per learning step (a few experiences, not one)
+  eligTau: 400,       // ticks; how long a KC spike stays eligible (~0.4 s coincidence window; shorter = more odor-specific)
   danGain: 40,        // scales DAN pool rate *above its running baseline* (spikes/ms/neuron) into a 0..1 dopamine drive
   danBaseTau: 300,    // learning steps (x learnEvery ticks) for the DAN baseline estimate; DANs are tonically active
                       // in this network, so only deviations from baseline count as teaching signals
-  danThresh: { reward: 0.01, punish: 0.03 }, // spikes/ms above baseline before a deviation counts; odors alone lift PPL1 by
+  danThresh: { reward: 0.01, punish: 0.04 }, // spikes/ms above baseline before a deviation counts; odors alone lift PPL1 by
                       // ~0.02-0.03 (scripts/dan_probe), the injected punishment by ~0.08
   forgetTau: 600000,  // ticks; slow recovery of depressed synapses (~10 sim minutes)
   learnEvery: 10,     // apply the rule every N ticks

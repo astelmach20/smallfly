@@ -42,6 +42,20 @@ Left alone the LIF network sits in a self-sustained up-state where PN and Kenyon
 
 `scripts/learn_test.mjs` pairs one odor with dopamine and reads the MBON valence for both odors before/after: punishment paired with sweet shifts sweet by −16.5 Hz and ferment by −8.6 Hz; reward paired with sweet shifts sweet by +19 Hz and ferment by +9 Hz. Dopamine neurons are tonically active and odors alone lift PPL1 by ~20-30 Hz, so only deviations above a running baseline and a threshold count as teaching signals (`danThresh`).
 
+### Does it work?
+
+`scripts/harness.mjs`: one fly, one brain, one food source (the garden, a ferment smell) 8 tiles away, 3 seeds × 60 s, eating disabled. `inPct` = share of time spent on the food.
+
+| condition | mean distance to food (tiles) | time on food | reached it |
+|---|---|---|---|
+| no steering (random walk, motor vigor only) | 17.4 | 3% | 2 of 3 |
+| naive fly | 4.2 | 42% | 3 of 3 |
+| garden smell pre-paired with punishment (PPL1, 4 × 0.6 s) | 4.8 | 33% | 3 of 3 |
+| garden smell pre-paired with reward (PAM, 4 × 0.6 s) | 3.2 | 60% | 3 of 3 |
+| upwind term from the JO readout inverted | 11.1 | 13% | 3 of 3 |
+
+Learning changes are graded (a few experiences, `learnRate` 0.0015) and recover over ~10 sim-minutes, so a punished fly still visits — it just doesn't linger. In the town the flies mostly earn reward (meals), so after a day most of them "like" food smells a bit more than they did at dawn; punishment comes from the river and from being swatted.
+
 - `scripts/select_subgraph.py` picks the subgraph: all olfactory receptor neurons, antennal-lobe PNs/LNs, lateral horn, the full mushroom body (KCs, MBONs, DANs), gustatory + wind sensors, all descending neurons, leg/wing/proboscis motor neurons, then fills to 30k with the neurons most strongly connected to that set. Edges with ≥ 5 synapses are kept; sign comes from predicted neurotransmitter (GABA/glutamate inhibitory).
 - `scripts/export_graph.py` writes `public/assets/brain.bin` (CSR graph + soma positions) and `brain.json` (named input/output groups).
 - `scripts/decode_steering.mjs` stimulates left vs right ORNs offline and finds the descending neurons that are actually side-selective; those become the steering readout.

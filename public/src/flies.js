@@ -35,7 +35,7 @@ export const TUNE = {
   hungerRate: 1 / 240,  // per town-second scaled; ~4 town-hours to get hungry
   // mushroom body: the learned component of the MBON readout for the odor being smelled right now
   // (depression of the active Kenyon cells' approach vs avoid synapses) scales how hard the fly steers toward it
-  mbGain: 2.5,
+  mbGain: 2.0,
   danReward: 0.08,      // PAM drive while tasting food (sugar reward)
   danCopy: 0.05,        // PAM drive while watching another fly eat something you can smell (social learning)
   danPunish: 0.1,       // PPL1 drive for a few seconds after getting wet / a near miss
@@ -45,7 +45,8 @@ export const TUNE = {
   sleepOff: 0.04,       // ... and below which it wakes (40 Hz; the circadian term keeps it above this until dawn)
   escapeThresh: 0.06,   // giant fiber rate that fires a jump (60 Hz; baseline is 0, a hand swat drives it to ~170 Hz)
   groomThresh: 0.012,   // DNg11/12 rate that starts grooming (12 Hz; baseline ~1 Hz, dusty bristles ~17-26 Hz)
-  songThresh: 0.010,    // pIP10 / vPR6 rate that starts singing (10 Hz; baseline ~3 Hz)
+  songThresh: 0.016,    // pIP10 / vPR6 rate that starts singing (16 Hz; baseline 3-11 Hz depending on company, P1-driven 17-24 Hz)
+  p1Thresh: 0.015,      // P1 must itself be firing (15 Hz; baseline 0) — the song DNs alone get some drive from pheromone/social input
   p1Drive: 0.06,        // tonic drive on P1 = courtship drive x pheromone gate (dopamine sets courtship motivation)
 };
 
@@ -273,7 +274,7 @@ export class Fly {
       ev.push(this.remember(this.dust > 0.8 ? 'Soaked. Stopped to groom every bristle dry.' : 'Sticky legs after that meal — stopped to groom.', clock, 'groom'));
       return ev;
     }
-    if (this.sex === 'm' && this.songRate > TUNE.songThresh && this.stateT > 1) {
+    if (this.sex === 'm' && this.p1Rate > TUNE.p1Thresh && this.songRate > TUNE.songThresh && this.stateT > 1) {
       let best = null, bd = 2.5; for (const f of flies) if (f !== this && f.sex === 'f' && f.state !== 'sleeping') { const d = Math.hypot(f.x - this.x, f.y - this.y); if (d < bd) { bd = d; best = f; } }
       if (best) { this.state = 'courting'; this.stateT = 0; this.mate = best; this.songT = 0; ev.push(this.remember(`Caught ${best.name}'s scent — started chasing her, wing out.`, clock, 'social')); return ev; }
     }
@@ -314,7 +315,7 @@ export class Fly {
       if (f === this || f.id < this.id) continue;
       const d = Math.hypot(f.x - this.x, f.y - this.y);
       const cd = this.metCooldown[f.id] || 0;
-      if (d < 1.3 && clock.now - cd > 90) {
+      if (d < 1.3 && clock.now - cd > 600 && !(this.mate === f || f.mate === this)) {
         this.metCooldown[f.id] = clock.now; f.metCooldown[this.id] = clock.now;
         this.relationships[f.name] = (this.relationships[f.name] || 0) + 1; f.relationships[this.name] = (f.relationships[this.name] || 0) + 1;
         this.dayLog.met[f.name] = (this.dayLog.met[f.name] || 0) + 1; f.dayLog.met[this.name] = (f.dayLog.met[this.name] || 0) + 1;

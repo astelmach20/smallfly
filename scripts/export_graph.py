@@ -7,6 +7,7 @@ brain.bin (little-endian): magic "SMALLFLY", u32 version=1, u32 N, u32 E,
   u32 srcOffsets[N+1], u16 targets[E], i16 weights[E] (sign(nt) * synapse count),
   u16 soma[N*3] (x,y,z scaled to 0..65535 over the CNS bounding box).
 """
+import os
 import sys, json, time, re
 import numpy as np, pandas as pd, pyarrow.ipc as ipc
 

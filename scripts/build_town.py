@@ -2,6 +2,7 @@
 # dependencies = ["pillow"]
 # ///
 """Convert the AI Town (a16z-infra/ai-town, MIT) 'gentle' map into public/assets/town.json with a water mask."""
+import os
 import json
 from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

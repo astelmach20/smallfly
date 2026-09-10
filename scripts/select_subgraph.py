@@ -7,6 +7,8 @@ Seeds = the sensorimotor loop we care about (smell, taste, mushroom body, descen
 Fill  = remaining Traced neurons ranked by total synapse weight shared with the seed set.
 Writes data/selection.npz + prints edge counts at several weight thresholds.
 """
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 import re, sys, json, time
 import numpy as np, pandas as pd, pyarrow.feather as f, pyarrow.ipc as ipc
 
@@ -90,6 +92,6 @@ for bi in range(r.num_record_batches):
     for t in (1, 2, 3, 5, 8, 10):
         hist[t] = hist.get(t, 0) + int((w >= t).sum())
 print('edges among selected by min weight:', hist, f'({time.time()-t0:.0f}s)')
-np.savez('/home/botuser/.claude/work/flytown/data/selection.npz', sel_ids=sel_ids)
-ann.to_pickle('/home/botuser/.claude/work/flytown/data/ann_traced.pkl')
-json.dump(hist, open('/home/botuser/.claude/work/flytown/data/edge_hist.json', 'w'))
+np.savez(os.path.join(ROOT, 'data', 'selection.npz'), sel_ids=sel_ids)
+ann.to_pickle(os.path.join(ROOT, 'data', 'ann_traced.pkl'))
+json.dump(hist, open(os.path.join(ROOT, 'data', 'edge_hist.json'), 'w'))

@@ -10,7 +10,7 @@ brain.bin (little-endian): magic "SMALLFLY", u32 version=1, u32 N, u32 E,
 import sys, json, time, re
 import numpy as np, pandas as pd, pyarrow.ipc as ipc
 
-ROOT = '/home/botuser/.claude/work/flytown'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = '/tmp/malecns'
 MINW = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 t0 = time.time()

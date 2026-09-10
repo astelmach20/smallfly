@@ -4,7 +4,7 @@
 """Convert the AI Town (a16z-infra/ai-town, MIT) 'gentle' map into public/assets/town.json with a water mask."""
 import json
 from PIL import Image
-ROOT = '/home/botuser/.claude/work/flytown'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 m = json.load(open('/tmp/gentle.json'))
 ts = Image.open(f'{ROOT}/public/assets/gentle-obj.png').convert('RGBA')
 T = m['tiledim']; W, H = m['screenxtiles'], m['screenytiles']; cols = ts.width // T

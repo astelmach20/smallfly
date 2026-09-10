@@ -2,3 +2,5 @@ data/
 .venv/
 node_modules/
 .vercel/
+.vercel
+.env*

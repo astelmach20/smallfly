@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smallfly — a little town of fruit-fly connectomes</title>
+<meta name="description" content="Six fruit flies, each driven by a 30,000-neuron slice of the real MaleCNS connectome, living in a tiny generative-agents-style town.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🪰%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="town"></canvas>
+    <div id="hud">
+      <div class="hud-left">
+        <span class="brand">🪰 Smallfly</span>
+        <span id="clock">Day 1 07:00</span>
+        <span id="weather"></span>
+      </div>
+      <div class="hud-right">
+        <button data-speed="0" title="pause (space)">⏸</button>
+        <button data-speed="1" class="active">1×</button>
+        <button data-speed="3">3×</button>
+        <button data-speed="10">10×</button>
+        <button id="toggle-odor" title="odor overlay (O)">odor</button>
+        <button id="toggle-labels" class="active" title="labels (L)">labels</button>
+        <button id="toggle-panel" title="side panel">☰</button>
+      </div>
+    </div>
+    <div id="chips"></div>
+    <div id="loading"><div class="box"><div class="title">Loading brains…</div><div id="loading-msg">fetching 30,000 neurons / 1.5M synapses</div><div class="bar"><div id="loading-bar"></div></div></div></div>
+  </div>
+  <aside id="panel">
+    <nav class="tabs"><button data-tab="feed" class="active">Town feed</button><button data-tab="fly">Fly</button><button data-tab="about">About</button></nav>
+    <section id="tab-feed" class="tab active"><ul id="feed"></ul></section>
+    <section id="tab-fly" class="tab"><div id="inspector"><p class="muted">Click a fly on the map, or pick one above.</p></div></section>
+    <section id="tab-about" class="tab">
+      <h2>What is this?</h2>
+      <p>A tiny <a href="https://arxiv.org/abs/2304.03442" target="_blank" rel="noopener">generative-agents</a>-style town, except the residents aren't LLMs — each fly is a leaky-integrate-and-fire simulation of a <b>30,000-neuron, 1.5-million-synapse slice of the real MaleCNS fruit-fly connectome</b> (smell → antennal lobe → lateral horn + mushroom body → descending neurons → leg/wing/proboscis motor neurons).</p>
+      <p>Odors in the town (food, other flies, water) become currents on the fly's actual olfactory receptor neurons, split by antenna side, and the whole slice runs at 1 ms resolution. Steering <i>direction</i> is read from the left/right spike-rate contrast of those simulated receptor neurons (the bilateral comparison real flies use); <i>vigor</i> comes from the leg and wing motor-neuron pools downstream, and the proboscis motor pool decides when a fly on food actually eats. Each fly keeps a memory stream of what happened to it and reflects on its day at dawn.</p>
+      <p>What we learned building it: in this simple LIF model, left/right odor information does <b>not</b> survive to the descending neurons — ORNs project to both antennal lobes and the network saturates — so a data-driven decoder over descending neurons ended up fitting noise. We say so rather than fake it.</p>
+      <p><b>Honest caveats:</b> the wiring is measured; the neuron model, synaptic scaling, sensory mapping and motor readout are engineering choices. Nothing here is a validated digital fly. It is a connectome-shaped toy with a town around it.</p>
+      <h3>Credits</h3>
+      <ul>
+        <li>Connectome: <a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS v1.0</a>, HHMI Janelia FlyEM · Univ. of Cambridge · MRC LMB · Google Research (CC BY 4.0).</li>
+        <li>Map: <a href="https://github.com/a16z-infra/ai-town" target="_blank" rel="noopener">AI Town</a> (MIT) — tiles by George Bailey, hilau, ansimuz (OpenGameArt).</li>
+        <li>Inspired by the fly-brain week on X: <a href="https://github.com/nftechie/doomfly" target="_blank" rel="noopener">DOOMFLY</a>, <a href="https://github.com/dzhng/fly-escape" target="_blank" rel="noopener">fly-escape</a>, <a href="https://github.com/MarkUnthank/flyhard" target="_blank" rel="noopener">flyhard</a>, <a href="https://github.com/ornata/fly" target="_blank" rel="noopener">Fly64</a>, <a href="https://x.com/KingBootoshi/status/2097950957741154470" target="_blank" rel="noopener">Bootoshi's maze</a>.</li>
+      </ul>
+      <p class="muted">Keys: space pause · 1/2/3 speed · O odor · L labels · drag to pan · wheel to zoom · click a fly to follow.</p>
+    </section>
+  </aside>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

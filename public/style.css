@@ -28,7 +28,7 @@ button.active { background:var(--accent); color:#111; border-color:var(--accent)
 #feed li { padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
 #feed li .t { color:var(--muted); font-size:11px; margin-right:6px; }
 #feed li .who { font-weight:700; }
-#feed li.social .who { color:#c58cff; } #feed li.meal .who { color:#7fe08a; } #feed li.danger .who { color:#ff7f50; } #feed li.reflect { background:rgba(255,179,71,.08); }
+#feed li.social .who { color:#c58cff; } #feed li.meal .who { color:#7fe08a; } #feed li.danger .who { color:#ff7f50; } #feed li.reflect { background:rgba(255,179,71,.08); } #feed li.learn .who { color:#f5e663; } #feed li.groom .who, #feed li.sleep .who, #feed li.wake .who { color:#9fb3c8; }
 .muted { color:var(--muted); }
 h2, h3 { margin:0 0 8px; font-size:15px; } h3 { margin-top:16px; }
 #tab-about p, #tab-about li { font-size:13px; color:#c9d4de; } #tab-about a { color:var(--accent); }
@@ -57,3 +57,5 @@ h2, h3 { margin:0 0 8px; font-size:15px; } h3 { margin-top:16px; }
   #app.panel-hidden { grid-template-rows: 1fr 0; }
   .kv { grid-template-columns: 90px 1fr; }
 }
+
+.about-list { padding-left: 18px; margin: 6px 0; } .about-list li { margin: 4px 0; }

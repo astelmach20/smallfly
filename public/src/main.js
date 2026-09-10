@@ -2,7 +2,8 @@ import { loadTown, foodOdor } from './world.js';
 import { Fly, PERSONAS, TownClock, TUNE } from './flies.js';
 import { UI } from './ui.js';
 
-const READOUTS = ['DN_L', 'DN_R', 'MN_leg_L', 'MN_leg_R', 'wing_L', 'wing_R', 'proboscis_L', 'proboscis_R', 'KC', 'MBON', 'steer_attr_L', 'steer_attr_R', 'steer_sweet_L', 'steer_sweet_R', 'steer_ferment_L', 'steer_ferment_R', 'steer_danger_L', 'steer_danger_R'];
+const READOUTS = ['DN_L', 'DN_R', 'MN_leg_L', 'MN_leg_R', 'wing_L', 'wing_R', 'proboscis_L', 'proboscis_R', 'KC', 'MBON', 'steer_attr_L', 'steer_attr_R', 'steer_sweet_L', 'steer_sweet_R', 'steer_ferment_L', 'steer_ferment_R', 'steer_danger_L', 'steer_danger_R',
+  'MBON_approach', 'MBON_avoid', 'DAN_reward', 'DAN_punish', 'P1', 'song_DN', 'GF', 'escape_DN', 'groom_DN', 'clock', 'sleep_FB', 'wind_L', 'wind_R', 'phero_female_L', 'phero_female_R', 'phero_male_L', 'phero_male_R'];
 const canvas = document.getElementById('town'); const ctx = canvas.getContext('2d');
 const loadingMsg = document.getElementById('loading-msg'), loadingBar = document.getElementById('loading-bar');
 const setLoad = (p, msg) => { loadingBar.style.width = (p * 100) + '%'; if (msg) loadingMsg.textContent = msg; };
@@ -13,7 +14,7 @@ async function fetchProgress(url, onProgress) {
   const out = new Uint8Array(got); let o = 0; for (const c of chunks) { out.set(c, o); o += c.length; } return out.buffer;
 }
 
-const state = { world: null, flies: [], clock: new TownClock(), wind: { x: 1, y: 0, speed: 0.4, angle: 0 }, speedMul: 1, showOdor: false, showLabels: true,
+const state = { world: null, flies: [], clock: new TownClock(), wind: { x: 1, y: 0, speed: 0.4, angle: 0 }, speedMul: 1, showOdor: false, showLabels: true, threats: [],
   cam: { x: 22.5, y: 16, zoom: 1 }, ui: null, meta: null, ticksPerWindow: 10 };
 
 async function boot() {
@@ -22,7 +23,7 @@ async function boot() {
   const metaP = fetch('assets/brain.json').then(r => r.json());
   const bufP = fetchProgress('assets/brain.bin', p => setLoad(0.05 + p * 0.7, `fetching connectome… ${(p * 100) | 0}%`));
   const [world, meta, buffer] = await Promise.all([worldP, metaP, bufP]);
-  state.world = world; state.meta = meta;
+  state.world = world; state.meta = meta; world.threats = state.threats;
   setLoad(0.8, 'spawning ' + PERSONAS.length + ' brains…');
   // soma positions for the brain view
   const N = meta.neuronCount, E = meta.edgeCount; const somaOff = 20 + (N + 1) * 4 + E * 2 + E * 2;
@@ -36,7 +37,7 @@ async function boot() {
     w.onmessage = (e) => {
       const m = e.data;
       if (m.type === 'ready') { ready++; setLoad(0.8 + 0.2 * ready / PERSONAS.length, `${ready}/${PERSONAS.length} brains online`); if (ready === PERSONAS.length) start(); }
-      else if (m.type === 'result') { f.pending = false; f.simMs = m.ms; f.lastTicks = m.ticks; f.tick = m.tick; f.applyRates(m.rates); if (m.spiked) f.spiked = m.spiked; }
+      else if (m.type === 'result') { f.pending = false; f.simMs = m.ms; f.lastTicks = m.ticks; f.tick = m.tick; f.learn = m.learn; f.applyRates(m.rates); if (m.spiked) f.spiked = m.spiked; }
     };
     // each fly gets its own copy of the graph and its own seed; personality tweaks the noise/drive a little
     w.postMessage({ type: 'init', buffer: buffer.slice(0), meta: { groups: meta.groups }, seed: 1000 + i * 7919, params: { ...lif, noiseStd: lif.noiseStd * (0.8 + 0.4 * p.restless), baseline: lif.baseline } });
@@ -64,6 +65,8 @@ function loop(now) {
     wind.angle += (Math.random() - 0.5) * dt * 0.3; wind.x = Math.cos(wind.angle); wind.y = Math.sin(wind.angle); wind.speed = 0.3 + 0.2 * Math.sin(clock.now / 700);
     // food slowly regrows
     for (const p of world.places) if (p.kind === 'food') p.supply = Math.min(1, (p.supply ?? 1) + dt * clock.scale / 7200);
+    // swats fade
+    for (let i = state.threats.length - 1; i >= 0; i--) { state.threats[i].t += dt; if (state.threats[i].t > 0.8) state.threats.splice(i, 1); }
     const events = [];
     for (const f of flies) {
       events.push(...f.update(dt, world, flies, clock, wind));
@@ -71,7 +74,6 @@ function loop(now) {
         const inputs = f.sense(world, flies, wind, clock);
         // ambient odor keeps a little spontaneous activity in the antennal lobe
         for (const k of Object.keys(state.meta.groups)) if (k.startsWith('odor_')) inputs[k] = (inputs[k] || 0) + 0.01;
-        if (f.state === 'sleeping') for (const k in inputs) inputs[k] *= 0.3;
         f.pending = true;
         const ticks = Math.max(4, Math.min(20, Math.round(state.ticksPerWindow * Math.max(1, state.speedMul / 3))));
         f.worker.postMessage({ type: 'tick', id: f.tick, inputs, ticks, readouts: READOUTS, wantSpikes: state.ui.selected === f });
@@ -115,6 +117,8 @@ function render() {
     if (p.kind === 'food') { const sup = p.supply ?? 1; ctx.beginPath(); ctx.arc(W2T(p.x), W2T(p.y), W2T(p.r), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,179,71,${0.15 + 0.35 * sup})`; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]); }
     if (state.showLabels) { ctx.font = `bold ${Math.max(9, 11 / Math.max(1, cam.zoom * 0.7)) | 0}px ui-monospace, monospace`; ctx.textAlign = 'center'; const label = p.name + (p.kind === 'food' ? ` (${Math.round((p.supply ?? 1) * 100)}%)` : ''); const w = ctx.measureText(label).width; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(W2T(p.x) - w / 2 - 3, W2T(p.y) - W2T(p.r) - 14, w + 6, 13); ctx.fillStyle = p.kind === 'food' ? '#ffb347' : p.kind === 'home' ? '#7fd4ff' : p.kind === 'danger' ? '#ff7f50' : '#e7eef5'; ctx.fillText(label, W2T(p.x), W2T(p.y) - W2T(p.r) - 4); }
   }
+  // swats (looming hand)
+  for (const t of state.threats) { const k = t.t / 0.8; ctx.beginPath(); ctx.arc(W2T(t.x), W2T(t.y), W2T(0.6 + 2.4 * k), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,127,80,${0.8 * (1 - k)})`; ctx.lineWidth = 2; ctx.stroke(); }
   // flies
   for (const f of flies) drawFly(f, T, cam.zoom);
   // day/night
@@ -127,11 +131,12 @@ function drawFly(f, T, zoom) {
   // shadow
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(2, 4, 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
   ctx.rotate(f.heading);
-  const flying = f.state === 'foraging' && f.speed > 0.2;
-  // wings
+  const flying = (f.state === 'foraging' || f.state === 'courting' || f.state === 'escaping') && f.speed > 0.2;
+  if (f.state === 'grooming') ctx.rotate(Math.sin(f.wingPhase * 0.5) * 0.12); // little shimmy
+  // wings; a singing male holds one wing out and vibrates it
   const flap = flying ? Math.sin(f.wingPhase) * 0.5 : 0.25;
   ctx.fillStyle = 'rgba(220,235,255,.55)';
-  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.ellipse(-2, sgn * (3 + flap * 2), 6, 2.4, sgn * (0.5 + flap * 0.6), 0, Math.PI * 2); ctx.fill(); }
+  for (const sgn of [-1, 1]) { const song = f.singing && sgn === 1; const ang = song ? 1.3 + Math.sin(f.wingPhase * 3) * 0.15 : sgn * (0.5 + flap * 0.6); ctx.beginPath(); ctx.ellipse(-2, sgn * (3 + flap * 2) * (song ? 1.6 : 1), 6, 2.4, ang, 0, Math.PI * 2); ctx.fill(); }
   // body
   ctx.fillStyle = '#2b1d12'; ctx.beginPath(); ctx.ellipse(0, 0, 5.5, 3, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = f.color; ctx.beginPath(); ctx.ellipse(-1.5, 0, 3, 2.2, 0, 0, Math.PI * 2); ctx.fill();
@@ -140,7 +145,7 @@ function drawFly(f, T, zoom) {
   ctx.restore();
   // status
   if (sel) { ctx.strokeStyle = f.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.stroke(); }
-  if (state.showLabels || sel) { ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.6)'; const lbl = f.name + (f.state === 'eating' ? ' 🍽' : f.state === 'sleeping' ? ' 💤' : f.state === 'wet' ? ' 💦' : ''); const w = ctx.measureText(lbl).width; ctx.fillRect(x - w / 2 - 2, y - 24, w + 4, 12); ctx.fillStyle = f.color; ctx.fillText(lbl, x, y - 15); }
+  if (state.showLabels || sel) { ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.6)'; const lbl = f.name + (f.state === 'eating' ? ' 🍽' : f.state === 'sleeping' ? ' 💤' : f.state === 'wet' ? ' 💦' : f.state === 'grooming' ? ' 🧼' : f.state === 'escaping' ? ' 💨' : f.state === 'courting' ? (f.singing ? ' 🎵' : ' 💘') : f.copying ? ' 👀' : ''); const w = ctx.measureText(lbl).width; ctx.fillRect(x - w / 2 - 2, y - 24, w + 4, 12); ctx.fillStyle = f.color; ctx.fillText(lbl, x, y - 15); }
 }
 
 // ---------- input ----------
@@ -150,7 +155,7 @@ function bindInput() {
   let drag = null;
   canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, moved: false }; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 3) drag.moved = true; const base = fitZoom() * state.cam.zoom * state.world.T; state.cam.x -= dx / base; state.cam.y -= dy / base; drag.x = e.clientX; drag.y = e.clientY; if (drag.moved) state.ui.follow = false; });
-  canvas.addEventListener('pointerup', e => { if (drag && !drag.moved) { const p = toWorld(e.clientX, e.clientY); let best = null, bd = 1.2; for (const f of state.flies) { const d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd) { best = f; bd = d; } } if (best) state.ui.select(best, true); } drag = null; });
+  canvas.addEventListener('pointerup', e => { if (drag && !drag.moved) { const p = toWorld(e.clientX, e.clientY); let best = null, bd = 1.2; for (const f of state.flies) { const d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd) { best = f; bd = d; } } if (best) state.ui.select(best, true); else if (state.world && p.x > 0 && p.y > 0 && p.x < state.world.W && p.y < state.world.H) state.threats.push({ x: p.x, y: p.y, t: 0 }); } drag = null; });
   canvas.addEventListener('wheel', e => { e.preventDefault(); state.cam.zoom = Math.max(0.6, Math.min(6, state.cam.zoom * (e.deltaY < 0 ? 1.12 : 0.89))); }, { passive: false });
   document.querySelectorAll('#hud button[data-speed]').forEach(b => b.onclick = () => setSpeed(+b.dataset.speed));
   document.getElementById('toggle-odor').onclick = () => { state.showOdor = !state.showOdor; document.getElementById('toggle-odor').classList.toggle('active', state.showOdor); };

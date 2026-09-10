@@ -60,15 +60,29 @@ export class UI {
       this.drawBrainBase();
     }
     const kv = document.getElementById('kv');
-    kv.innerHTML = `<b>Doing</b><span>${f.describeState()}</span><b>Where</b><span>${f.place?.name ?? 'the meadow'}</span><b>Hunger</b><span>${(f.hunger * 100) | 0}%</span><b>Meals</b><span>${f.meals}</span><b>Speed</b><span>${f.speed.toFixed(2)} tiles/s</span><b>Brain</b><span>${f.simMs.toFixed(1)} ms / ${f.lastTicks || 0} ticks · t=${(f.tick / 1000).toFixed(1)}s</span>`;
+    const L = f.learn || {}; const pct = (x) => x == null ? '–' : Math.round(x * 100) + '%';
+    const mb = `approach ${pct(L.approach)} · avoid ${pct(L.avoid)}${(L.reward > 0.05 || L.punish > 0.05) ? ` · <b style="color:${L.reward > L.punish ? '#7fe08a' : '#ff7f50'}">${L.reward > L.punish ? 'dopamine: reward' : 'dopamine: punishment'}</b>` : ''}`;
+    const mod = f.mbMod ?? 1; const modTxt = mod > 1.15 ? `likes this smell ×${mod.toFixed(1)}` : mod < 0.85 ? `wary of this smell ×${mod.toFixed(2)}` : 'neutral';
+    kv.innerHTML = `<b>Doing</b><span>${f.describeState()}</span><b>Where</b><span>${f.place?.name ?? 'the meadow'}</span><b>Hunger</b><span>${(f.hunger * 100) | 0}%</span><b>Meals</b><span>${f.meals}</span><b>Speed</b><span>${f.speed.toFixed(2)} tiles/s</span>` +
+      `<b>Sleep pressure</b><span>${Math.round(f.sleepPressure * 100)}% · dFB ${hz(f.sleepRate)} Hz</span><b>Grooming</b><span>dust ${Math.round(f.dust * 100)}% · DNg ${hz(f.groomRate)} Hz</span>` +
+      (f.sex === 'm' ? `<b>Courtship</b><span>drive ${Math.round(f.courtDrive * 100)}% · P1 ${hz(f.p1Rate)} Hz · song ${hz(f.songRate)} Hz</span>` : `<b>Sex</b><span>female (males court her)</span>`) +
+      `<b>Mushroom body</b><span>KC→MBON synapses: ${mb}</span><b>Learned valence</b><span>${modTxt}</span>` +
+      `<b>Brain</b><span>${f.simMs.toFixed(1)} ms / ${f.lastTicks || 0} ticks · t=${(f.tick / 1000).toFixed(1)}s</span>`;
     const bars = document.getElementById('bars');
     const row = (lbl, l, r, max) => `<div class="bar-row"><span class="lbl">${lbl}</span><div class="bar l"><i style="width:${Math.min(100, l / max * 100)}%"></i></div><div class="bar r"><i style="width:${Math.min(100, r / max * 100)}%"></i></div></div>`;
     bars.innerHTML = `<div class="bar-row"><span class="lbl muted">input L / R</span><span class="muted" style="text-align:right">left</span><span class="muted">right</span></div>` +
       row('food odor', raw.foodL || 0, raw.foodR || 0, 1.5) + row('fly odor', raw.socL || 0, raw.socR || 0, 1.5) + row('water/danger', raw.danL || 0, raw.danR || 0, 1.5) +
+      row('pheromone ♀ / ♂', (raw.pfL || 0) + (raw.pfR || 0), (raw.pmL || 0) + (raw.pmR || 0), 1.5) + row('looming', raw.loomL || 0, raw.loomR || 0, 1) +
       `<div class="bar-row" style="margin-top:8px"><span class="lbl muted">output Hz L / R</span><span></span><span></span></div>` +
       row(`descending ${hz(r.DN_L)}/${hz(r.DN_R)}`, r.DN_L || 0, r.DN_R || 0, 0.06) + row(`leg motor ${hz(r.MN_leg_L)}/${hz(r.MN_leg_R)}`, r.MN_leg_L || 0, r.MN_leg_R || 0, 0.06) +
       row(`wing motor ${hz(r.wing_L)}/${hz(r.wing_R)}`, r.wing_L || 0, r.wing_R || 0, 0.08) + row(`proboscis ${hz(r.proboscis_L)}/${hz(r.proboscis_R)}`, r.proboscis_L || 0, r.proboscis_R || 0, 0.06) +
-      row(`KC / MBON ${hz(r.KC)}/${hz(r.MBON)}`, r.KC || 0, r.MBON || 0, 0.06);
+      row(`KC / MBON ${hz(r.KC)}/${hz(r.MBON)}`, r.KC || 0, r.MBON || 0, 0.06) +
+      row(`MBON approach/avoid ${hz(r.MBON_approach)}/${hz(r.MBON_avoid)}`, r.MBON_approach || 0, r.MBON_avoid || 0, 0.06) +
+      row(`DAN reward/punish ${hz(r.DAN_reward)}/${hz(r.DAN_punish)}`, r.DAN_reward || 0, r.DAN_punish || 0, 0.15) +
+      row(`giant fiber / groom DN ${hz(r.GF)}/${hz(r.groom_DN)}`, r.GF || 0, r.groom_DN || 0, 0.1) +
+      row(`P1 / song DN ${hz(r.P1)}/${hz(r.song_DN)}`, r.P1 || 0, r.song_DN || 0, 0.06) +
+      row(`clock / sleep dFB ${hz(r.clock)}/${hz(r.sleep_FB)}`, r.clock || 0, r.sleep_FB || 0, 0.15) +
+      row(`wind JO ${hz(r.wind_L)}/${hz(r.wind_R)}`, r.wind_L || 0, r.wind_R || 0, 0.06);
     const rel = document.getElementById('rel');
     const rels = Object.entries(f.relationships).sort((a, b) => b[1] - a[1]);
     rel.innerHTML = rels.length ? rels.map(([n, c]) => `<span>${n} · ${c} meeting${c > 1 ? 's' : ''}</span>`).join('') : '<span class="muted">hasn\'t met anyone yet</span>';

@@ -8,7 +8,7 @@ const graph = parseBrain(ab);
 const amb = {}; for (const g of Object.keys(meta.groups)) if (g.startsWith('odor_')) amb[g] = 0.01;
 const amp = c => c / (c + 0.55);
 const out = {};
-for (const [name, grpL, grpR, inL, inR] of [['sweet','steer_sweet_L','steer_sweet_R','odor_sweet_L','odor_sweet_R'], ['ferment','steer_ferment_L','steer_ferment_R','odor_ferment_L','odor_ferment_R'], ['danger','steer_danger_L','steer_danger_R','odor_danger_L','odor_danger_R']]) {
+for (const [name, grpL, grpR, inL, inR] of [['sweet','steer_sweet_L','steer_sweet_R','odor_sweet_L','odor_sweet_R'], ['ferment','steer_ferment_L','steer_ferment_R','odor_ferment_L','odor_ferment_R'], ['danger','steer_danger_L','steer_danger_R','odor_danger_L','odor_danger_R'], ['wind','wind_L','wind_R','wind_L','wind_R']]) {
   const ratios = [];
   for (const c of [0.05, 0.15, 0.4, 1.0]) for (const seed of [7, 11]) {
     const b = new Brain(graph, meta, seed, meta.lif); b.setInputs(amb); b.run(300);

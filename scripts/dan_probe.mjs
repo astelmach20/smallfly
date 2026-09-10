@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import { parseBrain, Brain } from '../public/src/lif.js';
+const buf = fs.readFileSync('public/assets/brain.bin'); const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+const meta = JSON.parse(fs.readFileSync('public/assets/brain.json', 'utf8')); const graph = parseBrain(ab);
+const amb = {}; for (const g of Object.keys(meta.groups)) if (g.startsWith('odor_')) amb[g] = 0.01;
+const b = new Brain(graph, meta, 7, { ...meta.lif, learnRate: 0 }); b.setInputs(amb); b.run(600);
+const show = (l, inp) => { b.setInputs({ ...amb, ...inp }); b.run(200); b.run(400); console.log(l.padEnd(28), 'PPL1', (b.rate('DAN_punish', 400) * 1000).toFixed(1), 'PAM', (b.rate('DAN_reward', 400) * 1000).toFixed(1), 'MBONapp', (b.rate('MBON_approach', 400) * 1000).toFixed(1), 'MBONavo', (b.rate('MBON_avoid', 400) * 1000).toFixed(1)); };
+show('ambient', {});
+show('sweet 0.06', { odor_sweet_L: 0.06, odor_sweet_R: 0.06 });
+show('sweet 0.12', { odor_sweet_L: 0.12, odor_sweet_R: 0.12 });
+show('sweet 0.2 (strong)', { odor_sweet_L: 0.2, odor_sweet_R: 0.2 });
+show('ferment 0.12', { odor_ferment_L: 0.12, odor_ferment_R: 0.12 });
+show('taste 0.15+0.2', { taste_leg_L: 0.15, taste_leg_R: 0.15, taste_head_L: 0.2, taste_head_R: 0.2 });
+show('taste + DAN_reward 0.08', { taste_leg_L: 0.15, taste_leg_R: 0.15, DAN_reward: 0.08 });
+show('DAN_punish 0.1', { DAN_punish: 0.1 });
+show('loom 0.3', { loom_L: 0.3, loom_R: 0.3 });
+show('danger odor 0.12', { odor_danger_L: 0.12, odor_danger_R: 0.12 });

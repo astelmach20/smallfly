@@ -122,7 +122,7 @@ function render() {
 
 function drawFly(f, T, zoom) {
   const x = f.x * T, y = f.y * T; const sel = state.ui.selected === f;
-  ctx.save(); ctx.translate(x, y);
+  ctx.save(); ctx.translate(x, y); ctx.scale(1.5, 1.5);
   // shadow
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(2, 4, 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
   ctx.rotate(f.heading);
@@ -138,8 +138,8 @@ function drawFly(f, T, zoom) {
   ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(4.5, -1.6, 1.1, 0, Math.PI * 2); ctx.arc(4.5, 1.6, 1.1, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // status
-  if (sel) { ctx.strokeStyle = f.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2); ctx.stroke(); }
-  if (state.showLabels || sel) { ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.6)'; const lbl = f.name + (f.state === 'eating' ? ' 🍽' : f.state === 'sleeping' ? ' 💤' : f.state === 'wet' ? ' 💦' : ''); const w = ctx.measureText(lbl).width; ctx.fillRect(x - w / 2 - 2, y - 20, w + 4, 12); ctx.fillStyle = f.color; ctx.fillText(lbl, x, y - 11); }
+  if (sel) { ctx.strokeStyle = f.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.stroke(); }
+  if (state.showLabels || sel) { ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,.6)'; const lbl = f.name + (f.state === 'eating' ? ' 🍽' : f.state === 'sleeping' ? ' 💤' : f.state === 'wet' ? ' 💦' : ''); const w = ctx.measureText(lbl).width; ctx.fillRect(x - w / 2 - 2, y - 24, w + 4, 12); ctx.fillStyle = f.color; ctx.fillText(lbl, x, y - 15); }
 }
 
 // ---------- input ----------

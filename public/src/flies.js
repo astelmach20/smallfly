@@ -15,7 +15,7 @@ export const TUNE = {
   contrast: 2.0,        // L/R contrast amplification
   halfConc: 0.55,       // odor saturation constant
   turnGain: 2.5,        // rad/s per unit L/R spike-rate asymmetry
-  turnSign: 1,          // +1: right DNs -> turn right (set by calibration)
+  turnSign: -1,         // sign fixed empirically: flies must turn toward attractive odor, away from water
   speedBase: 0.9,       // tiles/s when motor pools are quiet
   speedGain: 300,       // tiles/s per (spikes/neuron/tick) of leg motor pool
   speedMax: 3.2,
@@ -79,7 +79,10 @@ export class Fly {
     return inp;
   }
   // --- motor readout -> body commands
-  applyRates(r) {
+  applyRates(raw) {
+    // exponential smoothing: short worker windows (4-20 ticks) make small motor pools very noisy
+    const r = this.rates || {}; const a = 0.35;
+    for (const k in raw) r[k] = (r[k] ?? raw[k]) * (1 - a) + raw[k] * a;
     this.rates = r;
     // steering: decoded side-selective descending neurons (see scripts/decode_steering.mjs)
     const asym = (a, b) => { const l = r[a] || 0, rr = r[b] || 0; return (l - rr) / (l + rr + 1e-4); };
@@ -123,7 +126,7 @@ export class Fly {
     }
     // feeding decision: on food + hungry + proboscis motor pool active (or hunger very high)
     if (here && here.kind === 'food' && this.hunger > 0.3 && (this.proboscis > TUNE.probEatThresh || this.hunger > 0.9) && this.stateT > 1) {
-      this.state = 'eating'; this.stateT = 0; this.speed = 0;
+      this.state = 'eating'; this.stateT = 0; this.speed = 0; this.place = here;
       ev.push(this.remember(`Landed on ${here.food} at ${here.name} and started eating.`, clock, 'meal'));
       return ev;
     }
@@ -143,7 +146,7 @@ export class Fly {
       ev.push(this.remember('Dipped a wing in the river — scrambled back to the bank, soaked.', clock, 'danger'));
     }
     // spooked by danger cue
-    if ((this.raw?.danL + this.raw?.danR) > 1.1 && Math.random() < dt * 0.15) { this.dayLog.spooked++; ev.push(this.remember('The smell of the water made me veer away.', clock, 'danger')); }
+    if ((this.raw?.danL + this.raw?.danR) > 1.1 && clock.now - (this.lastSpook || -1e9) > 1800 && Math.random() < dt * 0.3) { this.lastSpook = clock.now; this.dayLog.spooked++; ev.push(this.remember('The smell of the water made me veer away.', clock, 'danger')); }
     // place tracking
     const pid = here && here.kind !== 'water' ? here.id : null;
     if (pid !== (this.place?.id ?? null)) {
